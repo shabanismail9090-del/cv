@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the user is the admin
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.email == "shabanismail9090@gmail.com" && request.auth.token.email_verified == true;
+    }
+
+    // Validate email format
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // Validate message creation
+    function isValidMessage() {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['name', 'email', 'message', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.email is string && isValidEmail(data.email) && data.email.size() <= 100 &&
+             data.message is string && data.message.size() > 0 && data.message.size() <= 2000 &&
+             data.createdAt is timestamp;
+    }
+
+    match /messages/{messageId} {
+      // Anyone can create a message
+      allow create: if isValidMessage();
+      // Only admin can read, update, or delete messages
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}
